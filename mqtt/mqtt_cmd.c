@@ -7,6 +7,8 @@
 #include "mqtt_client.h"
 #include "mqtt_cmd.h"
 
+#ifdef USE_MQTT
+
 #ifdef MQTTCMD_DBG
 #define DBG(format, ...) do { os_printf(format, ## __VA_ARGS__); } while(0)
 #else
@@ -217,3 +219,4 @@ MQTTCMD_Setup(CmdPacket *cmd) {
     cmdMqttDisconnectedCb(client);
   }
 }
+#endif //USE_MQTT

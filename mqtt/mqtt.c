@@ -41,6 +41,8 @@
 #include "pktbuf.h"
 #include "mqtt.h"
 
+#ifdef USE_MQTT
+
 #ifdef MQTT_DBG
 #define DBG_MQTT(format, ...) os_printf(format, ## __VA_ARGS__)
 #else
@@ -818,3 +820,4 @@ void ICACHE_FLASH_ATTR
 MQTT_OnPublished(MQTT_Client* client, MqttCallback publishedCb) {
   client->publishedCb = publishedCb;
 }
+#endif //USE_MQTT

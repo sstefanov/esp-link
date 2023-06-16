@@ -24,6 +24,11 @@ static char console_buf[BUF_MAX];
 static int console_wr, console_rd;
 static int console_pos; // offset since reset of buffer
 
+int *pconsole_wr = &console_wr;
+int *pconsole_rd = &console_rd;
+int *pconsole_pos = &console_pos;
+char *pconsole_buf = console_buf;
+
 static void ICACHE_FLASH_ATTR
 console_write(char c) {
   console_buf[console_wr] = c;
@@ -33,6 +38,7 @@ console_write(char c) {
     console_rd = (console_rd+1) % BUF_MAX; // full, eat first char
     console_pos++;
   }
+  serledFlash(20);
 }
 
 #if 0
@@ -162,8 +168,10 @@ ajaxConsole(HttpdConnData *connData) {
   }
 
   // start outputting
-  len = os_sprintf(buff, "{\"len\":%d, \"start\":%d, \"text\": \"",
-      console_len-start, console_pos+start);
+  // len = os_sprintf(buff, "{\"len\":%d, \"start\":%d, \"text\": \"",
+  //     console_len-start, console_pos+start);
+  len = os_sprintf(buff, "{\"console_wr\": %d\", \"console_len\":%d, \"console_pos\":%d, \"start\":%d, \"len\":%d, \"start\":%d, \"text\": \"",
+      console_wr, console_rd, console_pos, start, console_len-start, console_pos+start);
 
   int rd = (console_rd+start) % BUF_MAX;
   while (len < 2040 && rd != console_wr) {

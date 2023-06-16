@@ -13,7 +13,7 @@
 # `ESP_HOSTNAME=my.esp.example.com make wiflash` is an easy way to override a variable
 
 # optional local configuration file
--include local.conf
+#-include local.conf
 
 # The Wifi station configuration can be hard-coded here, which makes esp-link come up in STA+AP
 # mode trying to connect to the specified AP *only* if the flash wireless settings are empty!
@@ -294,6 +294,9 @@ INCDIR		:= $(addprefix -I,$(SRC_DIR))
 EXTRA_INCDIR	:= $(addprefix -I,$(EXTRA_INCDIR))
 MODULE_INCDIR	:= $(addsuffix /include,$(INCDIR))
 
+# include locale
+-include local.conf
+
 V ?= $(VERBOSE)
 ifeq ("$(V)","1")
 Q :=
@@ -350,6 +353,8 @@ $1/%.o: %.c
 	$(vecho) "CC $$<"
 	$(Q)$(CC) $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CFLAGS)  -c $$< -o $$@
 endef
+
+
 
 .PHONY: all checkdirs clean webpages.espfs wiflash
 

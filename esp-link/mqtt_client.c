@@ -1,9 +1,8 @@
-#ifdef MQTT
+#ifdef USE_MQTT
 #include <esp8266.h>
 #include "cgiwifi.h"
 #include "config.h"
 #include "mqtt.h"
-
 
 #ifdef MQTTCLIENT_DBG
 #define DBG(format, ...) do { os_printf(format, ## __VA_ARGS__); } while(0)
@@ -114,4 +113,4 @@ void ICACHE_FLASH_ATTR
 mqtt_client_on_data(MqttDataCallback dataCb) {
   data_cb = dataCb;
 }
-#endif // MQTT
+#endif // USE_MQTT

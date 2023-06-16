@@ -475,7 +475,7 @@ serbridgeUartCb(char *buf, short length)
     slip_parse_buf(buf, length);
   }
 
-  serledFlash(50); // short blink on serial LED
+  //serledFlash(50); // short blink on serial LED
 }
 
 //===== Connect / disconnect

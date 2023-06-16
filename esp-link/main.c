@@ -56,7 +56,12 @@ bool ICACHE_FLASH_ATTR check_memleak_debug_enable(void)
     return MEMLEAK_DEBUG_ENABLE;
 }
 #endif
-
+#ifdef EXTERNAL_FUNCTIONS
+/*
+header file for external functions
+*/ 
+#include "external_functions.h"
+#endif
 /*
 This is the main url->function dispatching data struct.
 In short, it's a struct with various URLs plus their handlers. The handlers can
@@ -116,6 +121,9 @@ HttpdBuiltInUrl builtInUrls[] = {
   { "/web-server/upload", cgiWebServerSetupUpload, NULL },
   { "*.json", WEB_CgiJsonHook, NULL }, //Catch-all cgi JSON queries
 #endif
+#ifdef EXTINDEXHTML
+  { "/index.html", ajaxIndexHTML, NULL },
+#endif
   { "*", cgiEspFsHook, NULL }, //Catch-all cgi function for the filesystem
   { NULL, NULL, NULL }
 };
@@ -135,8 +143,9 @@ char* esp_link_version = VERS_STR(VERSION);
 extern uint32_t _binary_espfs_img_start;
 
 extern void app_init(void);
+#ifdef USE_MQTT
 extern void mqtt_client_init(void);
-
+#endif
 void ICACHE_FLASH_ATTR
 user_rf_pre_init(void) {
   //default is enabled
@@ -163,8 +172,8 @@ user_rf_cal_sector_set(void) {
 void ICACHE_FLASH_ATTR
 user_init(void) {
   // uncomment the following three lines to see flash config messages for troubleshooting
-  //uart_init(115200, 115200);
-  //logInit();
+  // uart_init(115200, 115200);
+  // logInit();
   //os_delay_us(100000L);
   // get the flash config so we know how to init things
   //configWipe(); // uncomment to reset the config for testing purposes

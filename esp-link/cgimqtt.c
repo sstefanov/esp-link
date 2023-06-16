@@ -1,4 +1,5 @@
 // Copyright 2015 by Thorsten von Eicken, see LICENSE.txt
+#ifdef USE_MQTT
 
 static char *mqtt_states[] = {
   "disconnected", "reconnecting", "connecting", "connected", "disabled"
@@ -184,3 +185,5 @@ int ICACHE_FLASH_ATTR cgiMqtt(HttpdConnData *connData) {
   }
 }
 #endif
+
+#endif //USE_MQTT
