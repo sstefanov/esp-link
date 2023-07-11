@@ -75,4 +75,9 @@ ensure that it's 32-bit aligned. The size of the espfs is shown here:
 ```
 Namely, 0x1f7c = 8060 bytes.
 
+```
+Manual flash:
+esptool.py --port /dev/ttyUSB0 --baud 921600 write_flash 0x01000 firmware/user1.bin
+
+
 

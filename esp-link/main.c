@@ -62,6 +62,11 @@ header file for external functions
 */ 
 #include "external_functions.h"
 #endif
+
+// add build version
+extern const char BUILD_VERSION;
+extern const char BUILD_DATE;
+
 /*
 This is the main url->function dispatching data struct.
 In short, it's a struct with various URLs plus their handlers. The handlers can
@@ -122,7 +127,9 @@ HttpdBuiltInUrl builtInUrls[] = {
   { "*.json", WEB_CgiJsonHook, NULL }, //Catch-all cgi JSON queries
 #endif
 #ifdef EXTINDEXHTML
-  { "/index.html", ajaxIndexHTML, NULL },
+  { "/index.html", ajaxWeight, NULL },
+  { "/weight.html", ajaxWeight, NULL },
+  { "/status.html", ajaxStatus, NULL },
 #endif
   { "*", cgiEspFsHook, NULL }, //Catch-all cgi function for the filesystem
   { NULL, NULL, NULL }
@@ -189,6 +196,7 @@ user_init(void) {
   os_delay_us(10000L);
   os_printf("\n\n** %s\n", esp_link_version);
   os_printf("Flash config restore %s\n", restoreOk ? "ok" : "*FAILED*");
+  os_printf("Version: %lu, date: %lu\n ", (unsigned long) &BUILD_VERSION, (unsigned long) &BUILD_DATE);
   // Status LEDs
   statusInit();
   serledInit();

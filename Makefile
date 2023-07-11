@@ -74,6 +74,13 @@ SDK_BASE ?= $(wildcard ../$(SDK_VERS))
 SDK_BASE := $(abspath $(SDK_BASE))
 $(info SDK     is $(SDK_BASE))
 
+# File where to store auto increments                                          
+BLD_FILE ?= .buildver
+# Initiate BLD_FILE if not exists                                              
+buildver_create := $(shell if ! test -f $(BLD_FILE); then echo 0 > $(BLD_FILE); fi)
+# Prepare callable function. This function updates BLD_FILE
+buildver = $(shell echo $$(($$(cat $(BLD_FILE)) + 1)) > $(BLD_FILE))
+
 # Path to bootloader file
 BOOTFILE	?= $(SDK_BASE/bin/boot_v1.6.bin)
 
@@ -82,7 +89,7 @@ BOOTFILE	?= $(SDK_BASE/bin/boot_v1.6.bin)
 # Windows users use the com port i.e: ESPPORT ?= com3
 ESPTOOL		?= $(abspath ../esp-open-sdk/esptool/esptool.py)
 ESPPORT		?= /dev/ttyUSB0
-ESPBAUD		?= 230400
+ESPBAUD		?= 921600 #230400
 
 # --------------- chipset configuration   ---------------
 
@@ -297,6 +304,10 @@ MODULE_INCDIR	:= $(addsuffix /include,$(INCDIR))
 # include locale
 -include local.conf
 
+# Add dynamically created values to the LDFLAGS
+LDFLAGS += -Xlinker --defsym -Xlinker BUILD_DATE=$(shell date +'%Y%m%d')
+LDFLAGS += -Xlinker --defsym -Xlinker BUILD_VERSION=$(shell cat $(BLD_FILE))
+
 V ?= $(VERBOSE)
 ifeq ("$(V)","1")
 Q :=
@@ -365,12 +376,16 @@ $(USER1_OUT): $(APP_AR) $(LD_SCRIPT1)
 	$(Q) $(LD) -L$(SDK_LIBDIR) -T$(LD_SCRIPT1) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group -o $@
 	@echo Dump  : $(OBJDP) -x $(USER1_OUT)
 	@echo Disass: $(OBJDP) -d -l -x $(USER1_OUT)
+	@echo LDFLAGS: $(LDFLAGS)
+	$(call buildver)
 #	$(Q) $(OBJDP) -x $(TARGET_OUT) | egrep espfs_img
 
 $(USER2_OUT): $(APP_AR) $(LD_SCRIPT2)
 	$(vecho) "LD $@"
 	$(Q) $(LD) -L$(SDK_LIBDIR) -T$(LD_SCRIPT2) $(LDFLAGS) -Wl,--start-group $(LIBS) $(APP_AR) -Wl,--end-group -o $@
 #	$(Q) $(OBJDP) -x $(TARGET_OUT) | egrep espfs_img
+	@echo LDFLAGS: $(LDFLAGS)
+	$(call buildver)
 
 $(FW_BASE):
 	$(vecho) "FW $@"
@@ -382,7 +397,7 @@ $(FW_BASE)/user1.bin: $(USER1_OUT) $(FW_BASE)
 	$(Q) $(OBJCP) --only-section .rodata -O binary $(USER1_OUT) eagle.app.v6.rodata.bin
 	$(Q) $(OBJCP) --only-section .irom0.text -O binary $(USER1_OUT) eagle.app.v6.irom0text.bin
 	$(Q) $(ELF_SIZE) -A $(USER1_OUT) |grep -v " 0$$" |grep .
-	$(Q) COMPILE=gcc PATH=$(XTENSA_TOOLS_ROOT):$(PATH) python $(APPGEN_TOOL) $(USER1_OUT) 2 $(ESP_FLASH_MODE) $(ESP_FLASH_FREQ_DIV) $(ESP_SPI_SIZE) 0 >/dev/null
+	$(Q) COMPILE=gcc PATH=$(XTENSA_TOOLS_ROOT):$(PATH) python2 $(APPGEN_TOOL) $(USER1_OUT) 2 $(ESP_FLASH_MODE) $(ESP_FLASH_FREQ_DIV) $(ESP_SPI_SIZE) 0 >/dev/null
 	$(Q) rm -f eagle.app.v6.*.bin
 	$(Q) mv eagle.app.flash.bin $@
 	@echo "    user1.bin uses $$(stat -c '%s' $@) bytes of" $(ESP_FLASH_MAX) "available"
@@ -393,7 +408,7 @@ $(FW_BASE)/user2.bin: $(USER2_OUT) $(FW_BASE)
 	$(Q) $(OBJCP) --only-section .data -O binary $(USER2_OUT) eagle.app.v6.data.bin
 	$(Q) $(OBJCP) --only-section .rodata -O binary $(USER2_OUT) eagle.app.v6.rodata.bin
 	$(Q) $(OBJCP) --only-section .irom0.text -O binary $(USER2_OUT) eagle.app.v6.irom0text.bin
-	$(Q) COMPILE=gcc PATH=$(XTENSA_TOOLS_ROOT):$(PATH) python $(APPGEN_TOOL) $(USER2_OUT) 2 $(ESP_FLASH_MODE) $(ESP_FLASH_FREQ_DIV) $(ESP_SPI_SIZE) 1 >/dev/null
+	$(Q) COMPILE=gcc PATH=$(XTENSA_TOOLS_ROOT):$(PATH) python2 $(APPGEN_TOOL) $(USER2_OUT) 2 $(ESP_FLASH_MODE) $(ESP_FLASH_FREQ_DIV) $(ESP_SPI_SIZE) 1 >/dev/null
 	$(Q) rm -f eagle.app.v6.*.bin
 	$(Q) mv eagle.app.flash.bin $@
 	$(Q) if [ $$(stat -c '%s' $@) -gt $$(( $(ESP_FLASH_MAX) )) ]; then echo "$@ too big!"; false; fi
@@ -415,7 +430,7 @@ baseflash: all
 
 flash: all
 	$(Q) $(ESPTOOL) --port $(ESPPORT) --baud $(ESPBAUD) write_flash -fs $(ET_FS) -ff $(ET_FF) \
-	  0x00000 "$(SDK_BASE)/bin/boot_v1.5.bin" 0x01000 $(FW_BASE)/user1.bin \
+	  0x00000 "$(SDK_BASE)/bin/boot_v1.7.bin" 0x01000 $(FW_BASE)/user1.bin \
 	  $(ET_BLANK) $(SDK_BASE)/bin/blank.bin
 
 tools/$(HTML_COMPRESSOR):

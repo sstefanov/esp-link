@@ -15,6 +15,10 @@
 #define DBG(format, ...) do { } while(0)
 #endif
 
+// add build version
+extern const char BUILD_VERSION;
+extern const char BUILD_DATE;
+
 char* rst_codes[7] = {
   "normal", "wdt reset", "exception", "soft wdt", "restart", "deep sleep", "external",
 };
@@ -77,7 +81,9 @@ int ICACHE_FLASH_ATTR cgiSystemInfo(HttpdConnData *connData) {
       "\"mqtt\": \"%s/%s\", "
 #endif
       "\"baud\": \"%d\", "
-      "\"description\": \"%s\""
+      "\"description\": \"%s\", "
+      "\"build-date\": \"%lu\", "
+      "\"build-number\": \"%lu\""
     " }",
     flashConfig.hostname,
     rst_info->reason,
@@ -92,7 +98,9 @@ int ICACHE_FLASH_ATTR cgiSystemInfo(HttpdConnData *connData) {
     mqttState(),
 #endif
     flashConfig.baud_rate,
-    flashConfig.sys_descr
+    flashConfig.sys_descr,
+    (unsigned long) &BUILD_DATE,
+    (unsigned long) &BUILD_VERSION 
     );
 
   jsonHeader(connData, 200);

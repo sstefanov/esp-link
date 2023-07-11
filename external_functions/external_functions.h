@@ -5,6 +5,7 @@
 //#pragma message ("External functions header")
 #define EXTINDEXHTML
 // process /index.html
-int ajaxIndexHTML(HttpdConnData *connData);
+int ajaxWeight(HttpdConnData *connData);
+int ajaxStatus(HttpdConnData *connData);
 
 #endif
