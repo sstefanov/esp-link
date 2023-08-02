@@ -16,6 +16,9 @@
 #define WDEV_NOW()   REG_READ(0x3ff20c00)
 
 #define BUF_MAX (1024)
+// round to 0.05
+#define ROUND_50
+
 extern int *pconsole_wr;
 extern int *pconsole_rd;
 extern int *pconsole_pos;
@@ -29,6 +32,49 @@ void trimspaces (char* s) {
             *p++=*s;
     }
     while (*s++);
+}
+
+double ICACHE_FLASH_ATTR  _atof(const char *s)
+{
+  // This function stolen from either Rolf Neugebauer or Andrew Tolmach. 
+  // Probably Rolf.
+  double a = 0.0;
+  int e = 0;
+  int c;
+  while ((c = *s++) != '\0' && isdigit(c)) {
+    a = a*10.0 + (c - '0');
+  }
+  if (c == '.') {
+    while ((c = *s++) != '\0' && isdigit(c)) {
+      a = a*10.0 + (c - '0');
+      e = e-1;
+    }
+  }
+  if (c == 'e' || c == 'E') {
+    int sign = 1;
+    int i = 0;
+    c = *s++;
+    if (c == '+')
+      c = *s++;
+    else if (c == '-') {
+      c = *s++;
+      sign = -1;
+    }
+    while (isdigit(c)) {
+      i = i*10 + (c - '0');
+      c = *s++;
+    }
+    e += i*sign;
+  }
+  while (e > 0) {
+    a *= 10.0;
+    e--;
+  }
+  while (e < 0) {
+    a *= 0.1;
+    e++;
+  }
+  return a;
 }
 
 char ICACHE_FLASH_ATTR *strrev(char *str) {
@@ -82,23 +128,50 @@ ajaxWeight(HttpdConnData *connData) {
     }
   }
  strrev(rdbuff);
+ //len += os_sprintf(buff + len , "\"rdbuff\":\"%s\", ", rdbuff);
 // parse string
 // ST,NT,     0.0 oz
   if (found) {
     status = (rdbuff[0] == 'S' && rdbuff[1] == 'T');
     strncpy(weight,rdbuff+6,8); 
     strncpy(units,rdbuff+15,2);
-    if (units == "kg") {
+    trimspaces(weight);
+    trimspaces(units);
+    double f = _atof(weight);
+    int intPart = f * 1000;
+
+    if (os_strcmp(units,"kg") == 0) {
       power = 2;
+#ifdef ROUND_50
+#pragma message("ROUND to 50")
+// round to 50 g
+      if (intPart % 50  >= 25 )
+        intPart = intPart + 50 - intPart % 50;
+      else
+        intPart = intPart - intPart % 50;
+//      len += os_sprintf(buff+len, "\"IntPart1\": %d", intPart);
+#endif      
     } 
     else {
-      if (units == "g ") {
+      if (os_strcmp(units,"g ") == 0) {
         power = -3;
       }
       else {
         power = 0;
       }
     }
+
+//    len += os_sprintf(buff+len, "\"IntPart2\": %d, ", intPart);
+    f = intPart / 1000.0;
+    // os_sprintf doesn't support %f
+    intPart = f;
+    int fracPart = (f - intPart) * 1000; // use 2 digit precision
+//    len += os_sprintf(buff+len, "\"IntPart3\": %d, ", intPart);
+//    len += os_sprintf(buff+len, "\"fracPart\": %d, ", fracPart);
+    if( fracPart < 0 ) // for negative numbers
+      fracPart = -fracPart;
+//    os_sprintf(weight, "%d.%02d", intPart, fracPart);
+
   // timestamp
     time_t now = NULL;
     struct tm *tp = NULL;
@@ -115,11 +188,8 @@ ajaxWeight(HttpdConnData *connData) {
         tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday,
         tp->tm_hour, tp->tm_min, tp->tm_sec);
 
-    trimspaces(weight);
-    trimspaces(units);
-
-    len += os_sprintf(buff+len, "\"final_weight\": %s, \"weight\": %s, \"timestamp\" : \"%s\", \"power\": \"%d\", \"status\" : \"%d\", \"unit\" : \"%s\"", 
-      weight, weight, rdbuff, power, status, units);
+    len += os_sprintf(buff+len, "\"final_weight\": %d.%02d, \"weight\": %d.%02d, \"timestamp\" : \"%s\", \"power\": \"%d\", \"status\" : \"%d\", \"unit\" : \"%s\"", 
+      intPart, fracPart, intPart, fracPart, rdbuff, power, status, units);
   }
   os_strcpy(buff+len, " }"); len+=2;
   httpdSend(connData, buff, len);
