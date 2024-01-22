@@ -17,21 +17,23 @@
 
 #define BUF_MAX (1024)
 // round to 0.05
-#define ROUND_50
+#define _ROUND 50
 
 extern int *pconsole_wr;
 extern int *pconsole_rd;
 extern int *pconsole_pos;
 extern char *pconsole_buf;
 
+
 // remove spaces from string
 void trimspaces (char* s) {
     char* p = s;
     do {
-        if (*s!=' ')
-            *p++=*s;
+      if (*s <= ' ') continue;
+      *p++=*s;
     }
     while (*s++);
+    *p = 0; // null termination
 }
 
 double ICACHE_FLASH_ATTR  _atof(const char *s)
@@ -90,6 +92,7 @@ char ICACHE_FLASH_ATTR *strrev(char *str) {
       }
       return str;
 }
+// #define WDBG
 
 int ICACHE_FLASH_ATTR
 ajaxWeight(HttpdConnData *connData) {
@@ -104,53 +107,112 @@ ajaxWeight(HttpdConnData *connData) {
   int buff_pos = 0;
   int rd = *pconsole_wr;
   bool found;
-
+#ifdef WDBG
+  char prbuff[256];
+  int prlen;
+  os_printf("weight\n");
+#endif
   if (connData->conn==NULL) return HTTPD_CGI_DONE; // Connection aborted. Clean up.
   //jsonHeader(connData, 200); // not needed, program is using plain text
-  len = os_sprintf(buff, "{"); 
+  rdbuff[buff_pos] = 0;
+  len = os_sprintf(buff, "{");
   found = false;
   buff_pos=0;
-  while (buff_pos<sizeof(rdbuff)) {
-    c = pconsole_buf[rd--];
-    if (rd < 0) rd = BUF_MAX - 1;
-    if (!found && (c == '\r')) {
-      found = true;
-    }
-    else {
-    // between fisrt and second \n
-      if (found) {
-        if (c == '\r' || c == '\n') {
-          rdbuff[buff_pos]=0; // terminate string
-          break;  // exit on second \n
+#ifdef WDBG
+  prlen = os_sprintf(prbuff, "p_wr=%d, p_rd=%d\n", *pconsole_wr, *pconsole_rd);
+  os_printf(prbuff,prlen);
+#endif
+  int rdcount = 0; // read 80 bytes max
+  // while (rd > 0 && buff_pos<sizeof(rdbuff)) {
+  while (rdcount < sizeof(rdbuff) * 2 + 2 && buff_pos < sizeof(rdbuff)) {
+      c = pconsole_buf[rd];
+#ifdef WDBG
+      prlen = os_sprintf(prbuff, "rdcount=%d, rd=%d, p_rd=%d, p_wr=%d, buff_pos=%d, c=%c 0x%02x \n", rdcount, rd, *pconsole_rd, *pconsole_wr, buff_pos, c, c);
+      os_printf(prbuff, prlen);
+#endif
+      rdcount++;
+      rd--;
+      if (rd < 0)
+          rd = BUF_MAX - 1;
+      if (!found && (c == '\r')) { // || c == '\n'
+          found = true;
+#ifdef WDBG
+          os_printf("\nFound first!\n");
+#endif
+
+      } else {
+        // between fisrt and second \n
+        if (found) {
+            if (c == '\r' || c == '\n') {
+                rdbuff[buff_pos] = 0; // terminate string
+                break;                // exit on second \n
+            }
+            rdbuff[buff_pos++] = c;
         }
-        rdbuff[buff_pos++]=c;
-      }
     }
   }
- strrev(rdbuff);
- //len += os_sprintf(buff + len , "\"rdbuff\":\"%s\", ", rdbuff);
-// parse string
-// ST,NT,     0.0 oz
+#ifdef WDBG
+  prlen = os_sprintf(prbuff, "rdbuff=%s\n", rdbuff);
+  os_printf(prbuff, prlen);
+#endif
+  // if (buff_pos == 0) {
+// none read
+  // }
+  // len += os_sprintf(buff + len, "\"rdbuff\":\"%s\", ", rdbuff);
+  // parse string
+  // ST,NT,     0.0 oz
   if (found) {
+    strrev(rdbuff);
+    memset(weight, 0, sizeof(weight));
+    memset(units, 0, sizeof(units));
+#ifdef WDBG
+    prlen = os_sprintf(prbuff, "rdbuff 2 =%s\n", rdbuff);
+    os_printf(prbuff, prlen);
+#endif
     status = (rdbuff[0] == 'S' && rdbuff[1] == 'T');
-    strncpy(weight,rdbuff+6,8); 
-    strncpy(units,rdbuff+15,2);
+    strncpy(weight, rdbuff + 6, 8);
+#ifdef WDBG
+    prlen = os_sprintf(prbuff, "weight=%s\n", weight);
+    os_printf(prbuff, prlen);
+#endif
+    strncpy(units, rdbuff + 15, 2);
+#ifdef WDBG
+    prlen = os_sprintf(prbuff, "units=%s\n", units);
+    os_printf(prbuff, prlen);
+#endif
     trimspaces(weight);
     trimspaces(units);
+#ifdef WDBG
+    prlen = os_sprintf(prbuff, "status=%d, weight=%s, units=%s\n", status ? 1 : 0, weight, units);
+    os_printf(prbuff, prlen);
+#endif
+    int sign = 1;
+    if (weight[0] == '-') {
+      sign = -1;
+      weight[0] = '0';
+    } 
     double f = _atof(weight);
+    if (f < 0) f = -f;
     int intPart = f * 1000;
+#ifdef WDBG
+    prlen = os_sprintf(prbuff, "sign=%d intPart = %d\n", sign, intPart);
+    os_printf(prbuff, prlen);
+#endif
 
-    if (os_strcmp(units,"kg") == 0) {
+    if (os_strcmp(units, "kg") == 0) {
       power = 2;
-#ifdef ROUND_50
-#pragma message("ROUND to 50")
+#ifdef _ROUND
 // round to 50 g
-      if (intPart % 50  >= 25 )
-        intPart = intPart + 50 - intPart % 50;
+      if (intPart % _ROUND  >= _ROUND/2 )
+        intPart = intPart + _ROUND - intPart % _ROUND;
       else
-        intPart = intPart - intPart % 50;
-//      len += os_sprintf(buff+len, "\"IntPart1\": %d", intPart);
-#endif      
+        intPart = intPart - intPart % _ROUND;
+  //      len += os_sprintf(buff+len, "\"IntPart1\": %d", intPart);
+#ifdef WDBG
+      prlen = os_sprintf(prbuff, "intPart round = %d\n", intPart);
+      os_printf(prbuff, prlen);
+#endif
+#endif
     } 
     else {
       if (os_strcmp(units,"g ") == 0) {
@@ -162,38 +224,48 @@ ajaxWeight(HttpdConnData *connData) {
     }
 
 //    len += os_sprintf(buff+len, "\"IntPart2\": %d, ", intPart);
-    f = intPart / 1000.0;
+    // f = intPart;
     // os_sprintf doesn't support %f
-    intPart = f;
-    int fracPart = (f - intPart) * 1000; // use 2 digit precision
-//    len += os_sprintf(buff+len, "\"IntPart3\": %d, ", intPart);
-//    len += os_sprintf(buff+len, "\"fracPart\": %d, ", fracPart);
+    int fracPart = intPart % 1000;
+    intPart = sign * intPart / 1000;
+#ifdef WDBG
+    prlen = os_sprintf(prbuff, "1 intPart = %d, fracPart = %d\n", intPart, fracPart);
+    os_printf(prbuff, prlen);
+#endif
+    fracPart = fracPart / 10; // use 2 digit precision
+                              //    lent+art = %d, fracPar+len%d"\"I intPa3\":fracPart);
+    //    len += os_sprintf(buff+len, "\"fracPart\": %d, ", fracPart);
     if( fracPart < 0 ) // for negative numbers
       fracPart = -fracPart;
 //    os_sprintf(weight, "%d.%02d", intPart, fracPart);
+#ifdef WDBG
+        prlen = os_sprintf(prbuff, "2 intPart = %d, fracPart = %d\n", intPart, fracPart);
+        os_printf(prbuff, prlen);
+#endif
 
-  // timestamp
-    time_t now = NULL;
-    struct tm *tp = NULL;
-    // create timestamp: FULL-DATE "T" PARTIAL-TIME "Z": 'YYYY-mm-ddTHH:MM:SSZ '
-    // as long as realtime_stamp is 0 we use tick div 10⁶ as date
-    uint32_t realtime_stamp = sntp_get_current_timestamp();
-    if (realtime_stamp == 0) 
-       realtime_stamp = WDEV_NOW() / 1000000;
-    // now = (realtime_stamp == 0) ? (se->tick / 1000000) : realtime_stamp;
-    now = realtime_stamp;
-    tp = gmtime(&now);
+        // timestamp
+        time_t now = NULL;
+        struct tm *tp = NULL;
+        // create timestamp: FULL-DATE "T" PARTIAL-TIME "Z": 'YYYY-mm-ddTHH:MM:SSZ '
+        // as long as realtime_stamp is 0 we use tick div 10⁶ as date
+        uint32_t realtime_stamp = sntp_get_current_timestamp();
+        if (realtime_stamp == 0)
+            realtime_stamp = WDEV_NOW() / 1000000;
+        // now = (realtime_stamp == 0) ? (se->tick / 1000000) : realtime_stamp;
+        now = realtime_stamp;
+        tp = gmtime(&now);
 
-    os_sprintf(rdbuff, "%4d-%02d-%02dT%02d:%02d:%02d",
-        tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday,
-        tp->tm_hour, tp->tm_min, tp->tm_sec);
+        os_sprintf(rdbuff, "%4d-%02d-%02dT%02d:%02d:%02d",
+                   tp->tm_year + 1900, tp->tm_mon + 1, tp->tm_mday,
+                   tp->tm_hour, tp->tm_min, tp->tm_sec);
 
-    len += os_sprintf(buff+len, "\"final_weight\": %d.%02d, \"weight\": %d.%02d, \"timestamp\" : \"%s\", \"power\": \"%d\", \"status\" : \"%d\", \"unit\" : \"%s\"", 
-      intPart, fracPart, intPart, fracPart, rdbuff, power, status, units);
-  }
-  os_strcpy(buff+len, " }"); len+=2;
-  httpdSend(connData, buff, len);
-  return HTTPD_CGI_DONE;
+        len += os_sprintf(buff + len, "\"final_weight\": %d.%02d, \"weight\": %d.%02d, \"timestamp\" : \"%s\", \"power\": \"%d\", \"status\" : \"%d\", \"unit\" : \"%s\"",
+                          intPart, fracPart, intPart, fracPart, rdbuff, power, status, units);
+    }
+    os_strcpy(buff + len, " }");
+    len += 2;
+    httpdSend(connData, buff, len);
+    return HTTPD_CGI_DONE;
 }
 
 // check connection and scale status

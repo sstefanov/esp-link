@@ -170,7 +170,7 @@ ajaxConsole(HttpdConnData *connData) {
   // start outputting
   // len = os_sprintf(buff, "{\"len\":%d, \"start\":%d, \"text\": \"",
   //     console_len-start, console_pos+start);
-  len = os_sprintf(buff, "{\"console_wr\": %d\", \"console_len\":%d, \"console_pos\":%d, \"start\":%d, \"len\":%d, \"start\":%d, \"text\": \"",
+  len = os_sprintf(buff, "{\"console_wr\": %d, \"console_len\":%d, \"console_pos\":%d, \"start\":%d, \"len\":%d, \"start\":%d, \"text\": \"",
       console_wr, console_rd, console_pos, start, console_len-start, console_pos+start);
 
   int rd = (console_rd+start) % BUF_MAX;
@@ -188,6 +188,7 @@ ajaxConsole(HttpdConnData *connData) {
     }
     rd = (rd + 1) % BUF_MAX;
   }
+
   os_strcpy(buff+len, "\"}"); len+=2;
   httpdSend(connData, buff, len);
   return HTTPD_CGI_DONE;

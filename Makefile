@@ -88,6 +88,7 @@ BOOTFILE	?= $(SDK_BASE/bin/boot_v1.6.bin)
 # Typically you'll use https://github.com/themadinventor/esptool
 # Windows users use the com port i.e: ESPPORT ?= com3
 ESPTOOL		?= $(abspath ../esp-open-sdk/esptool/esptool.py)
+#ESPTOOL		?= /usr/bin/esptool
 ESPPORT		?= /dev/ttyUSB0
 ESPBAUD		?= 921600 #230400
 
@@ -239,6 +240,10 @@ endif
 
 ifneq (,$(findstring socket,$(MODULES)))
 	CFLAGS		+= -DSOCKET
+endif
+
+ifneq (,$(findstring ssdpboth,$(MODULES)))
+	CFLAGS		+= -DSSDPBOTH
 endif
 
 # which modules (subdirectories) of the project to include in compiling
