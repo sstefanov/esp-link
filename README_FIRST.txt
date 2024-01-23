@@ -6,7 +6,6 @@ old PATH=/media/hdd2/sdb7/src/sstefanov/esp-open-sdk/xtensa-lx106-elf/bin/:/medi
 new:
 export PATH=/media/hdd2/sdb7/src/sstefanov/esp-open-sdk/xtensa-lx106-elf/bin/:/media/hdd2/sdb7/opt/google-cloud-sdk/bin:/home/sstefanov/.pyenv/bin:/usr/local/bin/../bin/../bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games:/usr/lib/jvm/jdk-18/bin:/home/sstefanov/bin
 
-
 * Flash with ./flash.sh, not use make flash
 
 * Flash original esp-link from release:
@@ -27,3 +26,6 @@ char prbuff[256];
 int prlen;
 prlen = os_sprintf(prbuff, "Hello, world! %s", integervalue );
 os_printf(prbuff,prlen);
+
+* serial port set  speed to be able to echo to it:
+stty -F /dev/ttyUSB0 9600 raw -echo -echoe -echok -echoctl -echoke
